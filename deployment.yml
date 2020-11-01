@@ -1,0 +1,47 @@
+
+- name: Sample_task_definition
+  community.aws.ecs_taskdefinition:
+    family: nginx
+    containers:
+    - name: nginx
+      essential: true
+      image: "nginx"
+      portMappings:
+      - containerPort: 8080
+        hostPort:      8080
+      cpu: 512
+      memory: 1024
+    launch_type: EC2
+    network_mode: bridge
+    state: present
+    register: task_output
+
+- name: Sample_container_service
+      ecs_service:
+        state: present
+        cluster: "<<EcsClusterName>>"
+        task_definition: Sample_task_definition
+        service_registries: [{
+          registryArn: "arn:aws:servicediscovery:<<Region>>:<<Account ID>>:service/<<srv_id>>",
+          container_name: 8080,
+          container_port:  8080
+        }]
+        desired_count: 1
+      register: service_output
+
+- name: scaling_policy
+  community.aws.aws_application_scaling_policy:
+    state: present
+    policy_name: test_policy
+    service_namespace: ecs
+    resource_id: service/<<ECSClusterName>>/test-as
+    scalable_dimension: ecs:service:DesiredCount
+    policy_type: TargetTrackingScaling
+    minimum_tasks: 1
+    maximum_tasks: 6
+    target_tracking_scaling_policy_configuration:
+      TargetValue: 60
+      PredefinedMetricSpecification:
+        PredefinedMetricType: ECSServiceAverageCPUUtilization
+      ScaleOutCooldown: 60
+      ScaleInCooldown: 60
